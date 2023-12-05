@@ -36,15 +36,25 @@ class FancyPropositions:
         return f"A.{self.data}"
 
 # Call your variables whatever you want
-a = BasicPropositions("a")
-b = BasicPropositions("b")   
-c = BasicPropositions("c")
-d = BasicPropositions("d")
-e = BasicPropositions("e")
+
+def map_init():
+    map = []
+    for i in range(size):
+        row = []
+        for j in range(size):
+            row.append()
+        map.append(row)
+    return map
+
+#a = BasicPropositions("a")
+#b = BasicPropositions("b")   
+#c = BasicPropositions("c")
+#d = BasicPropositions("d")
+#e = BasicPropositions("e")
 # At least one of these will be true
-x = FancyPropositions("x")
-y = FancyPropositions("y")
-z = FancyPropositions("z")
+#x = FancyPropositions("x")
+#y = FancyPropositions("y")
+#z = FancyPropositions("z")
 
 
 # Build an example full theory for your setting and return it.
