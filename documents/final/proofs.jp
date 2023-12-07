@@ -1,0 +1,68 @@
+﻿CONJECTUREPANEL Proof
+PROOF "∀x.(G(x)→(B(x)∨E(x))) ⊢ ∀x.((G(x)∧¬B(x))→E(x))"
+INFER ∀x.(G(x)→(B(x)∨E(x)))
+     ⊢ ∀x.((G(x)∧¬B(x))→E(x))
+FORMULAE
+0 E(i),
+1 ⊥,
+2 ¬B(i),
+3 B(i),
+4 B(i)∨E(i),
+5 G(i),
+6 G(i)→B(i)∨E(i),
+7 G(i)∧¬B(i),
+8 actual i,
+9 ∀x.(G(x)→(B(x)∨E(x))),
+10 G(x)→(B(x)∨E(x)),
+11 i,
+12 x,
+13 G(i)→(B(i)∨E(i)),
+14 (G(i)∧¬B(i))→E(i),
+15 (G(x)∧¬B(x))→E(x),
+16 ¬E(i)
+IS
+SEQ ("∀ intro"[i,P,x\11,15,12]) (cut[B,C\13,14]) ("∀ elim"[P,i,x\10,11,12]) (hyp[A\9]) (hyp[A\8]) ("→ intro"[A,B\7,0]) (cut[B,C\2,0]) (LAYOUT "∧ elim" (0) ("∧ elim(R)"[A,B\5,2]) (hyp[A\7])) (cut[B,C\5,0]) (LAYOUT "∧ elim" (0) ("∧ elim(L)"[A,B\5,2]) (hyp[A\7])) (cut[B,C\5,0]) (hyp[A\5]) (cut[B,C\4,0]) ("→ elim"[A,B\5,4]) (hyp[A\6]) (hyp[A\5]) ("∨ elim"[A,B,C\3,0,0]) (hyp[A\4]) (cut[B,C\1,0]) ("¬ elim"[B\3]) (hyp[A\3]) (hyp[A\2]) ("contra (classical)"[A\0]) (hyp[A\1]) (hyp[A\0])
+END
+CONJECTUREPANEL Proof
+PROOF "∀x.∀y.(P(x)∧P(y)∧T(x)∧¬T(y)) ⊢ ∀y.T(y)"
+INFER ∀x.∀y.(P(x)∧P(y)∧T(x)∧¬T(y))
+     ⊢ ∀y.T(y)
+FORMULAE
+0 T(i),
+1 P(i)∧P(i)∧T(i),
+2 P(i)∧P(i),
+3 P(i)∧P(i)∧T(i)∧¬T(i),
+4 ¬T(i),
+5 actual i,
+6 ∀y.(P(i)∧P(y)∧T(i)∧¬T(y)),
+7 P(i)∧P(y)∧T(i)∧¬T(y),
+8 i,
+9 y,
+10 ∀x.∀y.(P(x)∧P(y)∧T(x)∧¬T(y)),
+11 ∀y.(P(x)∧P(y)∧T(x)∧¬T(y)),
+12 x,
+13 T(y)
+IS
+SEQ ("∀ intro"[i,P,x\8,13,9]) (cut[B,C\6,0]) ("∀ elim"[P,i,x\11,8,12]) (hyp[A\10]) (hyp[A\5]) (cut[B,C\3,0]) ("∀ elim"[P,i,x\7,8,9]) (hyp[A\6]) (hyp[A\5]) (cut[B,C\1,0]) (LAYOUT "∧ elim" (0) ("∧ elim(L)"[A,B\1,4]) (hyp[A\3])) (cut[B,C\0,0]) (LAYOUT "∧ elim" (0) ("∧ elim(R)"[A,B\2,0]) (hyp[A\1])) (hyp[A\0])
+END
+CONJECTUREPANEL Proof
+PROOF "∀x.(S(x)→E) ⊢ ∀x.((S(x)∧H(x))→E)"
+INFER ∀x.(S(x)→E)
+     ⊢ ∀x.((S(x)∧H(x))→E)
+FORMULAE
+0 E[x\i],
+1 S(i),
+2 S(i)→E[x\i],
+3 S(i)∧H(i),
+4 H(i),
+5 actual i,
+6 ∀x.(S(x)→E),
+7 S(x)→E,
+8 i,
+9 x,
+10 (S(i)∧H(i))→E[x\i],
+11 (S(x)∧H(x))→E,
+12 ∀x.(S(x)→E)
+IS
+SEQ ("∀ intro"[i,P,x\8,11,9]) (cut[B,C\2,10]) ("∀ elim"[P,i,x\7,8,9]) (hyp[A\6]) (hyp[A\5]) ("→ intro"[A,B\3,0]) (cut[B,C\1,0]) (LAYOUT "∧ elim" (0) ("∧ elim(L)"[A,B\1,4]) (hyp[A\3])) (cut[B,C\1,0]) (hyp[A\1]) (cut[B,C\0,0]) ("→ elim"[A,B\1,0]) (hyp[A\2]) (hyp[A\1]) (hyp[A\0])
+END
