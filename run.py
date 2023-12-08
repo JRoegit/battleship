@@ -1,5 +1,8 @@
+
 from bauhaus import Encoding, proposition, constraint, Or, And
+
 from bauhaus.utils import count_solutions, likelihood
+import string
 import random
 # import pprint
 # pp = pprint.PrettyPrinter(indent=4)
@@ -41,9 +44,6 @@ class Hashable:
 
 
 BOARD_SIZE = 6
-VALID = True
-
-
 # ----------------------------------------- Propositions -----------------------------------------
 @proposition(E)
 class Boat(Hashable):
@@ -51,6 +51,16 @@ class Boat(Hashable):
         self.coords = coords
         self.length = length
         self.orientation = orientation
+        self.hits = 0  # New attribute to track hits
+
+    def hit(self, coord):
+        if coord in self.coords:
+            self.hits += 1
+            return True
+        return False
+
+    def is_sunk(self):
+        return self.hits == self.length
 
     def __str__(self):
         boat_coords = ""
@@ -73,26 +83,24 @@ class Game(Hashable):
         game+=")"
         return f"{game}"
 
+
 @proposition(E)
 class Guess(Hashable):
     def __init__(self, coords: tuple):
         self.coords = coords
 
     def __str__(self):
-        return f"{self.coords}"
+        return f"Guess({self.coords})"
 
 
-@proposition(E)
-class Around(Hashable):
-    def __init__(self, boat1: Boat, boat2: Boat):
-        self.boat1 = boat1
-        self.boat2 = boat2
-
-    def __str__(self):
-        return f"({self.boat1} (-) {self.boat2})"
+# ----------------------------------------- Variables -----------------------------------------
+board_status = [[' ' for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+guesses = []
+# Mini-Game will have one boat of lengths 5, 4, and 3
+all_games = []
+# ----------------------------------------- Create all variations -----------------------------------------
 
 
-# Create the propositions
 def create_coords(length, orientation, board_size):
     boats = []
 
@@ -124,8 +132,6 @@ all_boats_4_horizontal = create_coords(4, "horizontal", BOARD_SIZE)
 all_boats_4_vertical = create_coords(4, "vertical", BOARD_SIZE)
 all_boats_3_horizontal = create_coords(3, "horizontal", BOARD_SIZE)
 all_boats_3_vertical = create_coords(3, "vertical", BOARD_SIZE)
-# all_boats += create_coords(2, "horizontal", BOARD_SIZE)
-# all_boats += create_coords(2, "vertical", BOARD_SIZE)
 
 # Boats by size
 all_boats_5 = all_boats_5_horizontal + all_boats_5_vertical
@@ -135,186 +141,237 @@ all_boats_3 = all_boats_3_horizontal + all_boats_3_vertical
 # All the boats
 all_boats = all_boats_5 + all_boats_4 + all_boats_3
 
-# Mini-Game will have one boat of lengths 5, 4, and 3
-all_games = []
-
-# there is only one boat of length 5,4, and 3 in each game
+# generate all possible variations
 for boat1 in all_boats_5:
     for boat2 in all_boats_4:
         for boat3 in all_boats_3:
             all_games.append(Game(tuple([boat1, boat2, boat3])))
 
 
-# ----------------------------------------- Propositions -----------------------------------------
-
-def build_theory():
-    # loop through each possible variation
-    for game in all_games:
-        valid_game = True
-        # check each boat pair for separation and add constraints based on if it is a valid game or not
-        for i in range(len(game.boats)):
-            for j in range(i + 1, len(game.boats)):
-                boat1 = game.boats[i]
-                boat2 = game.boats[j]
-                if not boats_are_separated(boat1, boat2):
-                    valid_game = False
-                    break
-            if not valid_game:
-                break
-        if valid_game:
-            E.add_constraint(Game(game.boats))
-
-    return E
+# ----------------------------------------- Guessing Stuff -----------------------------------------
 
 
-# Create the propositions
-def create_coords(length, orientation, board_size):
-    boats = []
+def get_user_guess(board_status):
+    while True:
+        try:
+            col_input = input("Enter column (A, B, C, etc.): ").upper()
+            row_input = input("Enter row (1, 2, 3, etc.): ")
 
-    if orientation == "vertical":
-        for start in range((board_size+1)-length):
-            for r in range(board_size):
-                temp_coords = []
-                for c in range(length):
-                    temp_coords.append((r,c+start))
-                coords = tuple(temp_coords)
-                boats.append(Boat(coords, length, orientation))
+            col = string.ascii_uppercase.index(col_input)
+            row = int(row_input) - 1
 
-    elif orientation == "horizontal":
-        for start in range((board_size+1)-length):
-            for r in range(board_size):
-                temp_coords = []
-                for c in range(length):
-                    temp_coords.append((r,c+start))
-                coords = tuple(temp_coords)
-                boats.append(Boat(coords, length, orientation))
+            if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
+                if board_status[row][col] in ['H', 'M']:
+                    print("Spot already guessed. Please choose another spot.")
+                else:
+                    return (row, col)  # Return row and column as zero-indexed values
+            else:
+                print("Invalid input. Please enter a valid coordinate.")
+        except (ValueError, IndexError):
+            print("Invalid input. Please enter a valid coordinate.")
 
-    return boats
+
+def process_guess(game_board, player_board, x, y):
+    """
+    Check if the guess is a hit or a miss and update the player's board accordingly.
+    """
+    if game_board[x][y] == 1:
+        player_board[x][y] = 'H'  # Mark as hit on the player's board
+        return True
+    else:
+        player_board[x][y] = 'M'  # Mark as miss on the player's board
+        return False
+
+# ----------------------------------------- Generate Random Game -----------------------------------------
+
+
+BOAT_LENGTHS = [5, 4, 3]  # Lengths of boats to be placed
+
+
+def is_valid_placement(board, boat_coords):
+    for x, y in boat_coords:
+        if x < 0 or x >= BOARD_SIZE or y < 0 or y >= BOARD_SIZE or board[x][y] == 1:
+            return False
+        # Check surrounding cells
+        for dx in [-1, 0, 1]:
+            for dy in [-1, 0, 1]:
+                adj_x, adj_y = x + dx, y + dy
+                if 0 <= adj_x < BOARD_SIZE and 0 <= adj_y < BOARD_SIZE and board[adj_x][adj_y] == 1:
+                    return False
+    return True
+
+
+def place_boat(board, length, max_attempts=1000):
+    attempts = 0
+    while attempts < max_attempts:
+        orientation = random.choice(['horizontal', 'vertical'])
+        if orientation == 'horizontal':
+            x = random.randint(0, BOARD_SIZE - 1)
+            y = random.randint(0, BOARD_SIZE - length)
+            boat_coords = [(x, y + i) for i in range(length)]
+        else:
+            x = random.randint(0, BOARD_SIZE - length)
+            y = random.randint(0, BOARD_SIZE - 1)
+            boat_coords = [(x + i, y) for i in range(length)]
+
+        if is_valid_placement(board, boat_coords):
+            for coord in boat_coords:
+                board[coord[0]][coord[1]] = 1  # Mark the boat position
+            return True
+        attempts += 1
+
+    return False  # Failed to place the boat
+
+
+def generate_game():
+    board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+    for length in BOAT_LENGTHS:
+        if not place_boat(board, length):
+            # Could not place a boat, so start over or handle it differently
+            return generate_game()  # This is a simple recursive approach to start over
+    return board
+# ----------------------------------------- Frequency Map Stuff -----------------------------------------
+
+
+def is_valid_game(game):
+    # Check each pair of boats for separation
+    for i in range(len(game.boats)):
+        for j in range(i + 1, len(game.boats)):
+            if not boats_are_separated(game.boats[i], game.boats[j]):
+                return False
+    return True
 
 
 def boats_are_separated(boat1, boat2):
+    # check if boats are separated
     for x1, y1 in boat1.coords:
         for x2, y2 in boat2.coords:
             if abs(x1 - x2) <= 1 and abs(y1 - y2) <= 1:
                 return False
     return True
 
-def count_boat_occupancy(possible_games, board_size):
-    occupancy_count = [[0 for _ in range(board_size)] for _ in range(board_size)]
 
-    for game in possible_games:
-        for boat in game.boats:
-            for coord in boat.coords:
-                x, y = coord
-                occupancy_count[x][y] += 1
+def count_boat_occupancy(solutions):
+    occupancy_count = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
+
+    if solutions is None:
+        return occupancy_count  # Return empty or default occupancy count
+
+    # for each solution, get each boat coord and add them to frequency map
+    for sol in solutions:
+        if hasattr(sol, 'boats') and sol:
+            for boat in sol.boats:
+                for coord in boat.coords:
+                    x, y = coord
+                    occupancy_count[x][y] += 1
 
     return occupancy_count
 
 
-def initialize_board(sol):
-    board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
-    for game in sol:
-        for boat in game.boats:
-            for coord in boat.coords:
-                board[coord[0]][coord[1]] += 1
-    return board
+# ----------------------------------------- Display -----------------------------------------
 
 
-def print_board(sol, reveal=False):
-    # if reveal == true, show boats too (if not hit ofc) ⛵
+def print_board(board_status):
+    # Print column headers
+    print(" ", end=" ")
+    for col in range(BOARD_SIZE):
+        print(chr(ord('A') + col), end=" ")
+    print()
+
+    # Print each row
     for row in range(BOARD_SIZE):
+        # Print row number
+        print(f"{row + 1}", end=" ")
+
+        # Print each cell in the row
         for col in range(BOARD_SIZE):
-            coord = (row, col)
-            # itterate through the props and find out what is the state at a given coord
-            # if board[row][col] == '1':
-            #     print("🟢", end="")
-            # if board[row][col] == '2':
-            #     print("❌", end="")
-            # elif board[row][col] == '3':
-            #     print("💥", end="")
-            # else:
-            #     print("⬛", end="")
-
-    if reveal:
-        ...
-        # data = np.random.randint(low=1,
-        #                         high=100,
-        #                         size=(10, 10))
-
-        # # setting the parameter values
-        # annot = True
-
-        # # plotting the heatmap
-        # hm = sn.heatmap(data=data,
-        #                 annot=annot)
-
-        # # displaying the plotted heatmap
-        # plt.show()
+            print(board_status[row][col], end=" ")
+        print()
+# ----------------------------------------- Main -----------------------------------------
 
 
-# for each coord: (satisfiable)/(total possiblites for that coord), remove non-satisfibale to figure out the probability map
-# using that map recommend a value
-
-def generate_guesses(guesses):
-    # generate at most n guesses
-    coords = []
-    for _ in range(guesses):
-        x = random.randint(0, BOARD_SIZE)
-        y = random.randint(0, BOARD_SIZE)
-        coords.append((x, y))
-    unique_guesses = set(coords)
-
-    return sorted(unique_guesses)
+def build_theory():
+    # clear all previous constraints for a new turn
+    E.clear_constraints()
+    E._custom_constraints.clear()
 
 
-# Similar to print graph in graph theory example
-def play_game(sol, score):
-    # define the possible guesses
+    valid_games = []
+    # First, find all valid games (with separated boats)
+    for game in all_games:
+        if is_valid_game(game):
+            valid_games.append(game)
 
-    # print game board - (needs to be adjusted)
-    print_board(sol)
+    # then remove all invalid games(ones that do not align with the guesses)
+    for x, y, is_hit in guesses:
+        invalid_games = 0
+        for game in valid_games:
+            # get true or false based on whether there is a boat at guessed location or not
+            boat_at_guess = any(coord == (x, y) for boat in game.boats for coord in boat.coords)
+            # if there is a hit but not a boat at the guessed hit or...
+            # if there is not a hit at a location but there is a boat:
+            # remove that corresponding game from the list
+            if (is_hit and not boat_at_guess) or (not is_hit and boat_at_guess):
+                invalid_games += 1
+                valid_games.remove(game)
+        # FOR DEBUGGING
+        print(f"Guess at ({x},{y}), Hit: {is_hit}, Invalidated Games: {invalid_games}")
 
-    # print probability density board - (needs to be adjusted)
-    print_board(sol)
+    # all remaining games in valid_games should theoretically align with the separation rules and guesses
+    for game in valid_games:
+        E.add_constraint(Game(game.boats))
 
-    # if game is finished, exit and print score
-    print("Lower scores are better; your score is: " + score)
-    # else play the game but with the added constraint
-    # play_game(sol, score+1)
-
-
-def example_game():
-    desired_boats = {
-        ((0, 0), (0, 1), (0, 2), (0, 3), (0, 4)),
-        ((2, 0), (3, 0), (4, 0), (5, 0)),
-        ((5, 3), (5, 4), (5, 5))
-    }
-    desired_guesses = generate_guesses(20)
-
-    ...
-    # E.add_constraint(Game(Boat[desired_boats[0]],Boat[desired_boats[1]],Boat[desired_boats[2]]))
-    # for guess in desired_guesses:
-    #     E.add_constraint(Guess(guess))
+    return E
 
 
 if __name__ == "__main__":
+    # generate a random game
+    board_status = generate_game()
+    print_board(board_status)
 
-    T = build_theory()
-    # Don't compile until you're finished adding all your constraints!
-    T = T.compile()
+    # set up player board
+    player_board = [[0 for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
 
-    print("\nSatisfiable: %s" % T.satisfiable())
-    satisfied = T.solve()
+    game_over = False
+    while not game_over:
+        # Recompile the theory with the updated constraints
+        A = build_theory()
+        A_new = A.compile()
+        new_solution = A_new.solve()
 
-    print("Finding frequency map")
-    occupancy_count = count_boat_occupancy(satisfied, BOARD_SIZE)
+        print("\nSatisfiable: %s" % A_new.satisfiable())
 
-    for row in occupancy_count:
-        print(row)
+        # Count boat occupancy based on the solutions
+        print("Frequency Map:")
+        occupancy_count = count_boat_occupancy(new_solution)
+        for row in occupancy_count:
+            print(row)
 
-"""
-    To do list
-        - implement guessing mechanics
-        - make an example game
-        - displaya
-"""
+        print("Your Board:")
+        print_board(player_board)  # Print the current board status
+
+        guess_coord = get_user_guess(player_board)  # Get user guessA
+        print(guess_coord)
+        x, y = guess_coord
+
+        # determine if the guess is a hit or miss
+        # and hold those results inside guesses
+        result = process_guess(board_status, player_board, x, y)
+        guesses.append((x, y, result))
+
+        # need a game stopper
+        if result:  # If the guess is a hit
+            for boat in all_boats:  # Assuming all_boats is a list of Boat objects
+                if boat.hit((x, y)):
+                    print(f"Hit at {x}, {y}!")
+                    break
+
+            # Check if all boats are sunk
+        all_sunk = all(boat.is_sunk() for boat in all_boats)
+        if all_sunk:
+            print("All boats have been sunk! Game Over.")
+            game_over = True
+
+
+
+
